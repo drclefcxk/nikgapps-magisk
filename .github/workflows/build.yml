@@ -1,0 +1,76 @@
+name: Build NikGapps Magisk Module
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  TZ: Asia/Shanghai
+  ENV_FILE: .env
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: 'nikgapps-magisk'
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo -E apt-get -qq update
+          sudo -E apt-get -qq install -y unzip zip curl python3
+          sudo timedatectl set-timezone "${{ env.TZ }}"
+
+      - name: Import environment variables from a file
+        run: |
+          set -a
+          . "./${{ env.ENV_FILE }}"
+          set +a
+          for var in SOURCE_URL NIKGAPPS_ZIP_NAME RELEASE_VERSION; do
+            printf '%s=%s\n' "$var" "${!var}" >> "$GITHUB_ENV"
+          done
+
+      - name: Download NikGapps
+        run: |
+          curl -L --retry 3 --retry-delay 5 --fail \
+            -o "${{ env.NIKGAPPS_ZIP_NAME }}" "${{ env.SOURCE_URL }}"
+
+      - name: Build Magisk module
+        run: |
+          chmod +x build.sh convert-nikgapps-to-magisk.sh
+          ./build.sh "${{ env.NIKGAPPS_ZIP_NAME }}" \
+            "nikgapps-magisk-${{ env.RELEASE_VERSION }}.zip"
+
+      - name: Create release body
+        run: |
+          {
+            echo "**SHA256SUM:**"
+            echo "  \`$(sha256sum "nikgapps-magisk-${{ env.RELEASE_VERSION }}.zip")\`"
+            echo "**SourceURL:** ${{ env.SOURCE_URL }}"
+          } > RL.txt
+
+      - name: Create release and upload
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.RELEASE_VERSION }}
+          files: ./nikgapps-magisk-${{ env.RELEASE_VERSION }}.zip
+          body_path: ./RL.txt

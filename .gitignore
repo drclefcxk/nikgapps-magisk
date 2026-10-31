@@ -1,0 +1,10 @@
+# Build artifacts
+.build/
+.converting-*/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Downloaded / generated packages
+*.zip

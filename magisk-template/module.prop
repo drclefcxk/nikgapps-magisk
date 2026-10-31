@@ -1,0 +1,8 @@
+id=nikgapps-magisk
+name=NikGapps for Magisk
+version=core-arm64-12-20241231
+versionCode=20241231
+author=DrClef
+description=Systemless NikGapps: flash from the Magisk app, reboot and use Google apps without touching /system.
+minMagisk=20400
+support=https://github.com/drclefcxk/nikgapps-magisk
